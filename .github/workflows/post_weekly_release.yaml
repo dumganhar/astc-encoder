@@ -161,7 +161,7 @@ jobs:
         run: |
           mkdir build_rel
           cd build_rel
-          cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../ -DASTCENC_PACKAGE=universal ..
+          cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../ -DASTCENC_PACKAGE=universal .. -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
           make install package -j4
 
       - name: Upload binaries
