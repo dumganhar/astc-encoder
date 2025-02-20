@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - release/**
     tags:
       - '*'
   schedule:
@@ -166,6 +167,18 @@ jobs:
           cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../ -DASTCENC_PACKAGE=universal .. -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
           make install package -j4
 
+      - name: Check executable file dependencies and minos version
+        run: |
+          cd build_rel
+          echo "Dependencies: "
+          otool -L bin/astcenc
+
+          echo "Min version: "
+          # x86_64 min version is 10.13
+          otool -l ./Source/astcenc   | grep -A5 -B1 -m1 "LC_VERSION_MIN_MACOSX" 
+          # arm64 min version is 11.0
+          otool -l ./Source/astcenc   | grep -A5 -B1 -m1 "LC_BUILD_VERSION"
+
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
@@ -230,9 +243,11 @@ jobs:
       - name: Check executable file dependencies
         run: |
           cd build_rel
-          dir /s
+          dir
           cd bin
-          & $env:dumpbinPath /dependents astcenc-avx2.exe
+          dir
+#          cd bin
+#          & $env:dumpbinPath /dependents astcenc-avx2.exe
 
       # - name: Setup Visual Studio arm64
       #   uses: ilammy/msvc-dev-cmd@v1
