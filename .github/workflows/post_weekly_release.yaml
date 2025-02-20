@@ -63,6 +63,7 @@ jobs:
             --strip-path ${GITHUB_WORKSPACE}
 
   build-ubuntu-arm64:
+    if: github.repository_owner == 'Arm-software'
     name: Ubuntu arm64
     runs-on: ubuntu-24.04-arm
     steps:
@@ -109,6 +110,7 @@ jobs:
           python ./Test/astc_test_image.py --encoder sve_128 --test-set Small
 
   build-ubuntu-x64:
+    if: github.repository_owner == 'Arm-software'
     name: Ubuntu x64
     runs-on: ubuntu-22.04
     steps:
@@ -198,6 +200,23 @@ jobs:
       - name: Setup Visual Studio x86_64
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Find Visual Studio Installation Path with vswhere
+        id: vswhere
+        run: |
+          $vsPath = &vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          echo "vsPath=$vsPath" >> $env:GITHUB_ENV
+
+      - name: Find dumpbin.exe Path
+        id: find-dumpbin
+        run: |
+          $dumpbinPath = "$env:vsPath\VC\Tools\MSVC"
+          $dumpbinPath = Get-ChildItem -Path $dumpbinPath -Directory | Sort-Object Name -Descending | Select-Object -First 1 | ForEach-Object { "$($_.FullName)\bin\Hostx64\x64\dumpbin.exe" }
+          if (-not (Test-Path $dumpbinPath)) {
+            throw "dumpbin.exe not found"
+          }
+          echo "dumpbinPath=$dumpbinPath"
+          echo "dumpbinPath=$dumpbinPath" >> $env:GITHUB_ENV
+
       - name: Build release x64
         run: |
           mkdir build_rel
@@ -208,20 +227,27 @@ jobs:
           msbuild INSTALL.vcxproj -property:Configuration=Release
         shell: cmd
 
-      - name: Setup Visual Studio arm64
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x86_arm64
-
-      - name: Build release arm64
+      - name: Check executable file dependencies
         run: |
-          mkdir build_rel_arm64
-          cd build_rel_arm64
-          cmake -G "Visual Studio 17 2022" -A ARM64 -T ClangCL -DCMAKE_INSTALL_PREFIX=../ -DASTCENC_ISA_NEON=ON -DASTCENC_PACKAGE=arm64 ..
-          msbuild astcencoder.sln -property:Configuration=Release
-          msbuild PACKAGE.vcxproj -property:Configuration=Release
-          msbuild INSTALL.vcxproj -property:Configuration=Release
-        shell: cmd
+          cd build_rel
+          dir /s
+          cd bin
+          & $env:dumpbinPath /dependents astcenc-avx2.exe
+
+      # - name: Setup Visual Studio arm64
+      #   uses: ilammy/msvc-dev-cmd@v1
+      #   with:
+      #     arch: x86_arm64
+
+      # - name: Build release arm64
+      #   run: |
+      #     mkdir build_rel_arm64
+      #     cd build_rel_arm64
+      #     cmake -G "Visual Studio 17 2022" -A ARM64 -T ClangCL -DCMAKE_INSTALL_PREFIX=../ -DASTCENC_ISA_NEON=ON -DASTCENC_PACKAGE=arm64 ..
+      #     msbuild astcencoder.sln -property:Configuration=Release
+      #     msbuild PACKAGE.vcxproj -property:Configuration=Release
+      #     msbuild INSTALL.vcxproj -property:Configuration=Release
+      #   shell: cmd
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
@@ -230,8 +256,8 @@ jobs:
           path: |
             build_rel/*.zip
             build_rel/*.zip.sha256
-            build_rel_arm64/*.zip
-            build_rel_arm64/*.zip.sha256
+            # build_rel_arm64/*.zip
+            # build_rel_arm64/*.zip.sha256
 
       - name: Setup Python
         uses: actions/setup-python@v5
