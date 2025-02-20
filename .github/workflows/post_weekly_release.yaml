@@ -169,6 +169,7 @@ jobs:
 
       - name: Check executable file dependencies and minos version
         run: |
+          tree -L 3
           cd build_rel
           echo "Dependencies: "
           otool -L bin/astcenc
